@@ -1,9 +1,13 @@
 package me.fluxcapacitor2.todoapp.api.model
 
+import androidx.room.Entity
+import androidx.room.PrimaryKey
 import kotlinx.serialization.Serializable
 
+@Entity
 @Serializable
 data class Task(
+    @PrimaryKey
     val id: Int,
     val name: String,
     val description: String,

@@ -49,7 +49,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -72,19 +71,26 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.valentinilk.shimmer.shimmer
 import kotlinx.coroutines.launch
-import me.fluxcapacitor2.todoapp.api.Projects
-import me.fluxcapacitor2.todoapp.api.model.ProjectDetail
+import me.fluxcapacitor2.todoapp.api.ApiUtils
+import me.fluxcapacitor2.todoapp.api.ApiUtils.toMutableState
+import me.fluxcapacitor2.todoapp.api.initializeDatabase
 import me.fluxcapacitor2.todoapp.api.model.ProjectMeta
 import me.fluxcapacitor2.todoapp.api.model.Section
 import me.fluxcapacitor2.todoapp.api.model.Task
 import me.fluxcapacitor2.todoapp.ui.theme.TodoAppTheme
+import org.mobilenativefoundation.store.store5.StoreRequest
+import org.mobilenativefoundation.store.store5.StoreResponse
 
 class MainActivity : ComponentActivity() {
     @OptIn(ExperimentalMaterial3Api::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        initializeDatabase(this)
         WindowCompat.setDecorFitsSystemWindows(window, false)
-        window.setFlags(WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS, WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS)
+        window.setFlags(
+            WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
+            WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS
+        )
         setContent {
             TodoAppTheme {
                 var pageTitle by remember {
@@ -118,16 +124,16 @@ class MainActivity : ComponentActivity() {
                         Scaffold(
                             contentWindowInsets = WindowInsets(0),
                             topBar = {
-                            TopAppBar(title = { Text(text = pageTitle) }, navigationIcon = {
-                                IconButton(
-                                    onClick = { scope.launch { drawerState.open() } }) {
-                                    Icon(
-                                        imageVector = Icons.Default.Menu,
-                                        contentDescription = "Menu"
-                                    )
-                                }
-                            })
-                        }) { padding ->
+                                TopAppBar(title = { Text(text = pageTitle) }, navigationIcon = {
+                                    IconButton(
+                                        onClick = { scope.launch { drawerState.open() } }) {
+                                        Icon(
+                                            imageVector = Icons.Default.Menu,
+                                            contentDescription = "Menu"
+                                        )
+                                    }
+                                })
+                            }) { padding ->
                             NavHost(
                                 navController = navController,
                                 startDestination = "projects",
@@ -163,53 +169,43 @@ class MainActivity : ComponentActivity() {
 
     @Composable
     fun ProjectsView(navController: NavController) {
-        var projects by remember {
-            mutableStateOf(emptyArray<ProjectMeta>())
-        }
-        var loading by remember { mutableStateOf(true) }
-        var error by remember { mutableStateOf(false) }
-        LaunchedEffect(key1 = "fetch_projects") {
-            try {
-                projects = Projects.list()
-                loading = false
-            } catch (e: Exception) {
-                error = true
+        when (val data = ApiUtils.projectListStore.stream(StoreRequest.cached(Unit, refresh = true))
+            .toMutableState()) {
+            is StoreResponse.Loading -> {
+                CircularProgressIndicator()
             }
-        }
-        if (loading) {
-            CircularProgressIndicator()
-        } else {
-            LazyVerticalGrid(columns = GridCells.Fixed(2)) {
-                items(projects.size) {
-                    val project = projects[it]
-                    ProjectTile(
-                        project,
-                        navController
-                    )
+
+            is StoreResponse.Data -> {
+                val projects = data.value
+                LazyVerticalGrid(
+                    columns = GridCells.Fixed(2)
+                ) {
+                    items(projects.size) {
+                        val project = projects[it]
+                        ProjectTile(
+                            project,
+                            navController
+                        )
+                    }
                 }
             }
+
+            is StoreResponse.Error -> {
+                Text("Error loading projects!")
+            }
+
+            is StoreResponse.NoNewData -> {} // Unexpected
         }
     }
 
     @OptIn(ExperimentalMaterial3Api::class)
     @Composable
     fun ProjectTile(projectMeta: ProjectMeta, navController: NavController) {
-        var projectDetail by remember {
-            mutableStateOf(null as ProjectDetail?)
-        }
-        LaunchedEffect(key1 = projectMeta.id) {
-            projectDetail = Projects.get(projectMeta.id)
-        }
         Card(modifier = Modifier.padding(5.dp), onClick = {
             navController.navigate("project/${projectMeta.id}")
         }) {
-            Column(
-                modifier = Modifier.padding(10.dp),
-                verticalArrangement = if (projectDetail != null) Arrangement.Top else Arrangement.spacedBy(
-                    5.dp,
-                    Alignment.Top
-                )
-            ) {
+            Column(modifier = Modifier.padding(5.dp)) {
+
                 Text(
                     text = projectMeta.name,
                     fontSize = TextUnit(20F, TextUnitType.Sp),
@@ -217,24 +213,47 @@ class MainActivity : ComponentActivity() {
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
-                if (projectDetail != null) {
-                    Text(text = "${projectDetail!!.sections.size} sections")
-                    Text(text = "${projectDetail!!.sections.sumOf { it.tasks.size }} tasks")
-                } else {
-                    Box(
-                        modifier = Modifier
-                            .width(100.dp)
-                            .height(16.dp)
-                            .shimmer()
-                            .background(Color.White, RoundedCornerShape(4.dp))
+
+                when (val details =
+                    ApiUtils.projectStore.stream(
+                        StoreRequest.cached(
+                            projectMeta.id,
+                            refresh = true
+                        )
                     )
-                    Box(
-                        modifier = Modifier
-                            .width(100.dp)
-                            .height(16.dp)
-                            .shimmer()
-                            .background(Color.White, RoundedCornerShape(4.dp))
-                    )
+                        .toMutableState()) {
+                    is StoreResponse.Loading -> {
+                        Column(verticalArrangement = Arrangement.spacedBy(5.dp, Alignment.Top)) {
+
+                            Box(
+                                modifier = Modifier
+                                    .width(100.dp)
+                                    .height(16.dp)
+                                    .shimmer()
+                                    .background(Color.White, RoundedCornerShape(4.dp))
+                            )
+                            Box(
+                                modifier = Modifier
+                                    .width(100.dp)
+                                    .height(16.dp)
+                                    .shimmer()
+                                    .background(Color.White, RoundedCornerShape(4.dp))
+                            )
+                        }
+                    }
+
+                    is StoreResponse.Data -> {
+                        val projectDetail = details.value
+
+                        Text(text = "${projectDetail.sections.size} sections")
+                        Text(text = "${projectDetail.sections.sumOf { it.tasks.size }} tasks")
+                    }
+
+                    is StoreResponse.Error -> {
+                        Text("Error loading project details!")
+                    }
+
+                    is StoreResponse.NoNewData -> {} // Unexpected
                 }
             }
         }
@@ -248,37 +267,55 @@ class MainActivity : ComponentActivity() {
     @Composable
     fun ProjectDetailView(projectId: String?) {
         if (projectId == null) return
-        var projectDetail by remember {
-            mutableStateOf(null as ProjectDetail?)
-        }
-        LaunchedEffect(key1 = projectId) {
-            projectDetail = Projects.get(projectId)
-        }
-        if (projectDetail != null) {
-            val state = rememberPagerState(
-                initialPage = 0,
-                initialPageOffsetFraction = 0f
-            ) {
-                projectDetail!!.sections.size
+
+        when (val details =
+            ApiUtils.projectStore.stream(StoreRequest.cached(projectId, refresh = true))
+                .toMutableState()) {
+            is StoreResponse.Loading -> {
+                CircularProgressIndicator()
             }
-            HorizontalPager(state = state) {
-                SectionView(projectDetail!!.sections[it])
+
+            is StoreResponse.Data -> {
+                val projectDetail = details.value
+                val state = rememberPagerState(
+                    initialPage = 0,
+                    initialPageOffsetFraction = 0f
+                ) {
+                    projectDetail.sections.size
+                }
+                HorizontalPager(state = state) {
+                    SectionView(projectDetail.sections[it])
+                }
             }
+
+            is StoreResponse.Error -> {
+                Text("Error loading project")
+            }
+
+            is StoreResponse.NoNewData -> {} // Unexpected
         }
     }
 
     @Composable
     fun SectionView(section: Section) {
-        LazyColumn(modifier = Modifier
-            .padding(10.dp, 0.dp)
-            .fillMaxHeight()) {
+        LazyColumn(
+            modifier = Modifier
+                .padding(10.dp, 0.dp)
+                .fillMaxHeight()
+        ) {
             items(section.tasks.size + 2) {
                 // First thing in the list is the section title
-                if (it == 0) Text(text = section.name, fontSize = TextUnit(20F, TextUnitType.Sp), modifier = Modifier.padding(5.dp))
+                if (it == 0) Text(
+                    text = section.name,
+                    fontSize = TextUnit(20F, TextUnitType.Sp),
+                    modifier = Modifier.padding(5.dp)
+                )
                 // Last thing in the list is the add button
-                else if (it == section.tasks.size + 1) Button(onClick = { }, modifier = Modifier
-                    .padding(5.dp)
-                    .fillMaxWidth()) { Text(text = "Add Item", maxLines = 3) }
+                else if (it == section.tasks.size + 1) Button(
+                    onClick = { }, modifier = Modifier
+                        .padding(5.dp)
+                        .fillMaxWidth()
+                ) { Text(text = "Add Item", maxLines = 3) }
                 else TaskView(section.tasks[it - 1])
             }
             item {
@@ -291,31 +328,44 @@ class MainActivity : ComponentActivity() {
 
     @Composable
     fun TaskView(task: Task) {
-        ElevatedCard(modifier = Modifier
-            .padding(5.dp)
-            .fillMaxWidth(),
+        ElevatedCard(
+            modifier = Modifier
+                .padding(5.dp)
+                .fillMaxWidth(),
             elevation = CardDefaults.elevatedCardElevation(4.dp)
         ) {
             Row(modifier = Modifier.padding(5.dp)) {
                 var checked by remember {
                     mutableStateOf(false)
                 }
-                Checkbox(checked = checked, onCheckedChange = { checked = !checked } )
+                Checkbox(checked = checked, onCheckedChange = { checked = !checked })
                 Column(modifier = Modifier.align(Alignment.CenterVertically)) {
                     Text(task.name, fontSize = TextUnit(19F, TextUnitType.Sp))
                     if (task.description.isNotEmpty()) {
-                        OutlinedCard(modifier = Modifier
-                            .padding(5.dp)
-                            .fillMaxWidth()) {
-                            Text(task.description.replace("\n\n", "\n"), maxLines = 4, modifier = Modifier.padding(5.dp))
+                        OutlinedCard(
+                            modifier = Modifier
+                                .padding(5.dp)
+                                .fillMaxWidth()
+                        ) {
+                            Text(
+                                task.description.replace("\n\n", "\n"),
+                                maxLines = 4,
+                                modifier = Modifier.padding(5.dp)
+                            )
                         }
                     }
                     if (!task.dueDate.isNullOrEmpty()) {
-                        OutlinedCard(modifier = Modifier
-                            .padding(5.dp)
-                            .fillMaxWidth()) {
+                        OutlinedCard(
+                            modifier = Modifier
+                                .padding(5.dp)
+                                .fillMaxWidth()
+                        ) {
                             Row {
-                                Icon(imageVector = Icons.TwoTone.DateRange, contentDescription = null, modifier = Modifier.padding(5.dp))
+                                Icon(
+                                    imageVector = Icons.TwoTone.DateRange,
+                                    contentDescription = null,
+                                    modifier = Modifier.padding(5.dp)
+                                )
                                 Text(task.dueDate, modifier = Modifier.padding(5.dp))
                             }
                         }
