@@ -1,27 +1,29 @@
 package me.fluxcapacitor2.todoapp
 
 import android.os.Bundle
+import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.Orientation
-import androidx.compose.foundation.gestures.scrollable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.windowInsetsBottomHeight
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Menu
@@ -57,9 +59,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.TextUnitType
 import androidx.compose.ui.unit.dp
+import androidx.core.view.WindowCompat
 import androidx.navigation.NavController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -79,6 +83,8 @@ class MainActivity : ComponentActivity() {
     @OptIn(ExperimentalMaterial3Api::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+        window.setFlags(WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS, WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS)
         setContent {
             TodoAppTheme {
                 var pageTitle by remember {
@@ -109,7 +115,9 @@ class MainActivity : ComponentActivity() {
                                 onClick = { navController.navigate("settings"); scope.launch { drawerState.close() } })
                         }
                     }) {
-                        Scaffold(topBar = {
+                        Scaffold(
+                            contentWindowInsets = WindowInsets(0),
+                            topBar = {
                             TopAppBar(title = { Text(text = pageTitle) }, navigationIcon = {
                                 IconButton(
                                     onClick = { scope.launch { drawerState.open() } }) {
@@ -171,11 +179,7 @@ class MainActivity : ComponentActivity() {
         if (loading) {
             CircularProgressIndicator()
         } else {
-            LazyVerticalGrid(
-                columns = GridCells.Fixed(2), modifier = Modifier.scrollable(
-                    rememberScrollState(), Orientation.Vertical
-                )
-            ) {
+            LazyVerticalGrid(columns = GridCells.Fixed(2)) {
                 items(projects.size) {
                     val project = projects[it]
                     ProjectTile(
@@ -209,7 +213,9 @@ class MainActivity : ComponentActivity() {
                 Text(
                     text = projectMeta.name,
                     fontSize = TextUnit(20F, TextUnitType.Sp),
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
                 if (projectDetail != null) {
                     Text(text = "${projectDetail!!.sections.size} sections")
@@ -263,7 +269,9 @@ class MainActivity : ComponentActivity() {
 
     @Composable
     fun SectionView(section: Section) {
-        LazyColumn(modifier = Modifier.padding(10.dp).fillMaxHeight()) {
+        LazyColumn(modifier = Modifier
+            .padding(10.dp, 0.dp)
+            .fillMaxHeight()) {
             items(section.tasks.size + 2) {
                 // First thing in the list is the section title
                 if (it == 0) Text(text = section.name, fontSize = TextUnit(20F, TextUnitType.Sp), modifier = Modifier.padding(5.dp))
@@ -272,6 +280,11 @@ class MainActivity : ComponentActivity() {
                     .padding(5.dp)
                     .fillMaxWidth()) { Text(text = "Add Item", maxLines = 3) }
                 else TaskView(section.tasks[it - 1])
+            }
+            item {
+                Spacer(
+                    modifier = Modifier.windowInsetsBottomHeight(WindowInsets.systemBars)
+                )
             }
         }
     }
