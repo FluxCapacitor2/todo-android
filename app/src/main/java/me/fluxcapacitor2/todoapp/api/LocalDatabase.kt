@@ -30,7 +30,7 @@ fun initializeDatabase(context: Context) {
 
 @Database(
     entities = [ProjectMeta::class, DbProjectDetail::class, User::class, DbSection::class, Task::class],
-    version = 2
+    version = 4
 )
 abstract class LocalDatabase : RoomDatabase() {
     abstract fun projectMetaDao(): ProjectMetaDao

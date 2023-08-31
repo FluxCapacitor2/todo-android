@@ -4,17 +4,16 @@ import android.os.Bundle
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.width
@@ -33,20 +32,26 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.ModalDrawerSheet
 import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.NavigationDrawerItem
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -69,7 +74,6 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-import com.valentinilk.shimmer.shimmer
 import kotlinx.coroutines.launch
 import me.fluxcapacitor2.todoapp.api.ApiUtils
 import me.fluxcapacitor2.todoapp.api.ApiUtils.toMutableState
@@ -78,6 +82,8 @@ import me.fluxcapacitor2.todoapp.api.model.ProjectMeta
 import me.fluxcapacitor2.todoapp.api.model.Section
 import me.fluxcapacitor2.todoapp.api.model.Task
 import me.fluxcapacitor2.todoapp.ui.theme.TodoAppTheme
+import me.fluxcapacitor2.todoapp.utils.formatDueDate
+import me.fluxcapacitor2.todoapp.utils.formatStartDate
 import org.mobilenativefoundation.store.store5.StoreRequest
 import org.mobilenativefoundation.store.store5.StoreResponse
 
@@ -137,7 +143,9 @@ class MainActivity : ComponentActivity() {
                             NavHost(
                                 navController = navController,
                                 startDestination = "projects",
-                                modifier = Modifier.padding(padding)
+                                modifier = Modifier.padding(padding),
+                                enterTransition = { EnterTransition.None },
+                                exitTransition = { ExitTransition.None }
                             ) {
                                 composable("projects") {
                                     pageTitle = "Projects"
@@ -184,7 +192,7 @@ class MainActivity : ComponentActivity() {
                         val project = projects[it]
                         ProjectTile(
                             project,
-                            navController
+                            navController,
                         )
                     }
                 }
@@ -205,7 +213,6 @@ class MainActivity : ComponentActivity() {
             navController.navigate("project/${projectMeta.id}")
         }) {
             Column(modifier = Modifier.padding(5.dp)) {
-
                 Text(
                     text = projectMeta.name,
                     fontSize = TextUnit(20F, TextUnitType.Sp),
@@ -214,47 +221,8 @@ class MainActivity : ComponentActivity() {
                     overflow = TextOverflow.Ellipsis
                 )
 
-                when (val details =
-                    ApiUtils.projectStore.stream(
-                        StoreRequest.cached(
-                            projectMeta.id,
-                            refresh = true
-                        )
-                    )
-                        .toMutableState()) {
-                    is StoreResponse.Loading -> {
-                        Column(verticalArrangement = Arrangement.spacedBy(5.dp, Alignment.Top)) {
-
-                            Box(
-                                modifier = Modifier
-                                    .width(100.dp)
-                                    .height(16.dp)
-                                    .shimmer()
-                                    .background(Color.White, RoundedCornerShape(4.dp))
-                            )
-                            Box(
-                                modifier = Modifier
-                                    .width(100.dp)
-                                    .height(16.dp)
-                                    .shimmer()
-                                    .background(Color.White, RoundedCornerShape(4.dp))
-                            )
-                        }
-                    }
-
-                    is StoreResponse.Data -> {
-                        val projectDetail = details.value
-
-                        Text(text = "${projectDetail.sections.size} sections")
-                        Text(text = "${projectDetail.sections.sumOf { it.tasks.size }} tasks")
-                    }
-
-                    is StoreResponse.Error -> {
-                        Text("Error loading project details!")
-                    }
-
-                    is StoreResponse.NoNewData -> {} // Unexpected
-                }
+                Text(text = "${projectMeta.sections} sections")
+                Text(text = "${projectMeta.tasks} tasks")
             }
         }
     }
@@ -326,13 +294,20 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    @OptIn(ExperimentalMaterial3Api::class)
     @Composable
     fun TaskView(task: Task) {
+
+        var modalBottomSheet by remember {
+            mutableStateOf(false)
+        }
+
         ElevatedCard(
             modifier = Modifier
                 .padding(5.dp)
                 .fillMaxWidth(),
-            elevation = CardDefaults.elevatedCardElevation(4.dp)
+            elevation = CardDefaults.elevatedCardElevation(4.dp),
+            onClick = { modalBottomSheet = true }
         ) {
             Row(modifier = Modifier.padding(5.dp)) {
                 var checked by remember {
@@ -366,9 +341,102 @@ class MainActivity : ComponentActivity() {
                                     contentDescription = null,
                                     modifier = Modifier.padding(5.dp)
                                 )
-                                Text(task.dueDate, modifier = Modifier.padding(5.dp))
+                                Text(task.formatDueDate(), modifier = Modifier.padding(5.dp))
                             }
                         }
+                    }
+                }
+            }
+        }
+
+        if (modalBottomSheet) {
+            ModalBottomSheet(onDismissRequest = { modalBottomSheet = false }) {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                    modifier = Modifier
+                        .padding(horizontal = 8.dp)
+                        .padding(bottom = 80.dp)
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Checkbox(checked = task.completed, onCheckedChange = {})
+                        Text(text = task.name, fontSize = TextUnit(24f, TextUnitType.Sp))
+                    }
+
+                    Column {
+                        Text(
+                            text = "Description",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = TextUnit(20f, TextUnitType.Sp)
+                        )
+                        if (task.description.isEmpty()) {
+                            Text("Add description", color = Color.Gray)
+                        } else {
+                            Text(text = task.description)
+                        }
+                    }
+
+                    Column {
+                        Text(
+                            text = "Dates",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = TextUnit(20f, TextUnitType.Sp)
+                        )
+
+                        var dueDatePickerOpen by remember {
+                            mutableStateOf(false)
+                        }
+                        val dueDatePickerState = rememberDatePickerState()
+
+                        if (dueDatePickerOpen) {
+                            DatePickerDialog(
+                                onDismissRequest = { dueDatePickerOpen = false },
+                                confirmButton = {
+                                    TextButton(onClick = { dueDatePickerOpen = false }) {
+                                        Text(text = "Confirm")
+                                    }
+                                }) {
+                                DatePicker(state = dueDatePickerState)
+                            }
+                        }
+
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            OutlinedButton(
+                                onClick = { dueDatePickerOpen = true },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .weight(1f),
+                                shape = RoundedCornerShape(5.dp)
+                            ) {
+                                Text(text = if (task.startDate != null) "Started ${task.formatStartDate()}" else "Add Start Date")
+                            }
+                            OutlinedButton(
+                                onClick = { dueDatePickerOpen = true },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .weight(1f),
+                                shape = RoundedCornerShape(5.dp)
+                            ) {
+                                Text(text = if (task.dueDate != null) "Due ${task.formatDueDate()}" else "Add Due Date")
+                            }
+                        }
+                    }
+
+                    Column {
+                        Text(
+                            text = "Reminders",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = TextUnit(20f, TextUnitType.Sp)
+                        )
+                        Text(text = "Schedule a notification linking to this task.")
+                    }
+
+                    Row {
+                        Text(
+                            text = "Sub-tasks ",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = TextUnit(20f, TextUnitType.Sp)
+                        )
+                        Text(text = "0/0 completed", color = Color.Gray)
                     }
                 }
             }

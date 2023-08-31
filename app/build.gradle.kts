@@ -17,7 +17,7 @@ android {
 
     defaultConfig {
         applicationId = "me.fluxcapacitor2.todoapp"
-        minSdk = 24
+        minSdk = 26
         targetSdk = 34
         versionCode = 1
         versionName = "1.0"
@@ -67,7 +67,7 @@ dependencies {
     implementation("androidx.compose.ui:ui-graphics")
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.compose.material3:material3")
-    implementation("androidx.navigation:navigation-compose:2.7.0")
+    implementation("androidx.navigation:navigation-compose:2.7.1")
     implementation("com.valentinilk.shimmer:compose-shimmer:1.0.5")
     implementation("com.google.accompanist:accompanist-systemuicontroller:0.33.0-alpha")
     testImplementation("junit:junit:4.13.2")
