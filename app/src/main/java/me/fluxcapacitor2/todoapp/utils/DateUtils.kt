@@ -37,7 +37,7 @@ fun shortDateFormat(isoDateString: String): String {
     val isThisYear = now.year == date.year
 
     val dayDifference =
-        ChronoUnit.DAYS.between(date, now)
+        ChronoUnit.DAYS.between(now, date)
 
     val isWithinOneWeek = dayDifference in 1..6
     val isTomorrow = isBetween(date, startOfTomorrow, endOfTomorrow)
@@ -60,9 +60,9 @@ fun shortDateFormat(isoDateString: String): String {
     } else if (isLastWeek) {
         "Last ${date.format("EEE")}"
     } else if (isWithinOneWeek) {
-        date.format("MMM d")
-    } else {
         date.format("EEE")
+    } else {
+        date.format("MMM d")
     }
 
     val time =
@@ -74,8 +74,8 @@ fun shortDateFormat(isoDateString: String): String {
 }
 
 private fun isBetween(
-    first: ZonedDateTime,
     dateToCompare: ZonedDateTime,
+    first: ZonedDateTime,
     second: ZonedDateTime
 ): Boolean {
     return dateToCompare.isAfter(first) && dateToCompare.isBefore(second)
