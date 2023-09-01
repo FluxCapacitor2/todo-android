@@ -85,7 +85,7 @@ dependencies {
     implementation("io.ktor:ktor-client-logging:$ktor_version")
 
     implementation("org.mobilenativefoundation.store:store5:5.0.0-alpha03")
-    implementation("org.jetbrains.kotlinx:atomicfu:0.18.5")
+    implementation("org.jetbrains.kotlinx:atomicfu:0.20.2")
 
     val room_version = "2.5.2"
     implementation("androidx.room:room-runtime:$room_version")

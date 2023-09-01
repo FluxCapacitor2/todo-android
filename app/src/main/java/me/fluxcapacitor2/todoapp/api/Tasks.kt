@@ -2,6 +2,7 @@ package me.fluxcapacitor2.todoapp.api
 
 import io.ktor.client.call.body
 import io.ktor.client.request.get
+import io.ktor.client.request.header
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
 import kotlinx.serialization.json.JsonArray
@@ -21,6 +22,7 @@ object Tasks {
         sectionId: Int
     ): TRPCResponse<Nothing> {
         return client.post("tasks.create") {
+            header("Content-Type", "application/json")
             setBody(
                 JsonObject(
                     mapOf(
@@ -49,6 +51,7 @@ object Tasks {
 
     suspend fun delete(taskId: Int) {
         client.post("tasks.delete") {
+            header("Content-Type", "application/json")
             setBody(
                 JsonObject(
                     mapOf(
@@ -102,6 +105,7 @@ object Tasks {
         }
 
         client.post("tasks.update") {
+            header("Content-Type", "application/json")
             setBody(
                 JsonObject(
                     mapOf(
@@ -120,6 +124,7 @@ object Tasks {
         parentTaskId: Int
     ): TRPCResponse<Nothing> {
         return client.post("tasks.addSubtask") {
+            header("Content-Type", "application/json")
             setBody(
                 JsonObject(
                     mapOf(
