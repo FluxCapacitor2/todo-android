@@ -47,6 +47,10 @@ import java.time.ZoneOffset
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 
+/**
+ * A [ModalBottomSheet] containing detailed information about a task.
+ * The information can be edited from within this view.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TaskDetailView(taskState: MutableState<Task>, onClose: () -> Unit) {
@@ -174,6 +178,7 @@ fun TaskDetailView(taskState: MutableState<Task>, onClose: () -> Unit) {
                     fontWeight = FontWeight.Bold,
                     fontSize = TextUnit(20f, TextUnitType.Sp)
                 )
+
                 Text(text = "0/0 completed", color = Color.Gray)
             }
 

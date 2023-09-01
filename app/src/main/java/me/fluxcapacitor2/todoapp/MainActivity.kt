@@ -6,32 +6,17 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
-import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.windowInsetsBottomHeight
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.pager.HorizontalPager
-import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Menu
-import androidx.compose.material.icons.twotone.DateRange
-import androidx.compose.material3.Button
 import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DrawerValue
-import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -39,7 +24,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalDrawerSheet
 import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.NavigationDrawerItem
-import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -51,7 +35,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -70,10 +53,7 @@ import me.fluxcapacitor2.todoapp.api.ApiUtils
 import me.fluxcapacitor2.todoapp.api.ApiUtils.toMutableState
 import me.fluxcapacitor2.todoapp.api.initializeDatabase
 import me.fluxcapacitor2.todoapp.api.model.ProjectMeta
-import me.fluxcapacitor2.todoapp.api.model.Section
-import me.fluxcapacitor2.todoapp.api.model.Task
 import me.fluxcapacitor2.todoapp.ui.theme.TodoAppTheme
-import me.fluxcapacitor2.todoapp.utils.formatDueDate
 import org.mobilenativefoundation.store.store5.StoreRequest
 import org.mobilenativefoundation.store.store5.StoreResponse
 
@@ -219,127 +199,6 @@ class MainActivity : ComponentActivity() {
 
     @Composable
     fun TasksView() {
-    }
-
-    @OptIn(ExperimentalFoundationApi::class)
-    @Composable
-    fun ProjectDetailView(projectId: String?) {
-        if (projectId == null) return
-
-        when (val details =
-            ApiUtils.projectStore.stream(StoreRequest.cached(projectId, refresh = true))
-                .toMutableState()) {
-            is StoreResponse.Loading -> {
-                CircularProgressIndicator()
-            }
-
-            is StoreResponse.Data -> {
-                val projectDetail = details.value
-                val state = rememberPagerState(
-                    initialPage = 0,
-                    initialPageOffsetFraction = 0f
-                ) {
-                    projectDetail.sections.size
-                }
-                HorizontalPager(state = state) {
-                    SectionView(projectDetail.sections[it])
-                }
-            }
-
-            is StoreResponse.Error -> {
-                Text("Error loading project")
-            }
-
-            is StoreResponse.NoNewData -> {} // Unexpected
-        }
-    }
-
-    @Composable
-    fun SectionView(section: Section) {
-        LazyColumn(
-            modifier = Modifier
-                .padding(10.dp, 0.dp)
-                .fillMaxHeight()
-        ) {
-            items(section.tasks.size + 2) {
-                // First thing in the list is the section title
-                if (it == 0) Text(
-                    text = section.name,
-                    fontSize = TextUnit(20F, TextUnitType.Sp),
-                    modifier = Modifier.padding(5.dp)
-                )
-                // Last thing in the list is the add button
-                else if (it == section.tasks.size + 1) Button(
-                    onClick = { }, modifier = Modifier
-                        .padding(5.dp)
-                        .fillMaxWidth()
-                ) { Text(text = "Add Item", maxLines = 3) }
-                else TaskView(section.tasks[it - 1])
-            }
-            item {
-                Spacer(
-                    modifier = Modifier.windowInsetsBottomHeight(WindowInsets.systemBars)
-                )
-            }
-        }
-    }
-
-    @OptIn(ExperimentalMaterial3Api::class)
-    @Composable
-    fun TaskView(task: Task) {
-
-        var modalBottomSheet by remember {
-            mutableStateOf(false)
-        }
-
-        TaskProvider(initial = task) { task ->
-            ElevatedCard(
-                modifier = Modifier
-                    .padding(5.dp)
-                    .fillMaxWidth(),
-                elevation = CardDefaults.elevatedCardElevation(4.dp),
-                onClick = { modalBottomSheet = true }
-            ) {
-                Row(modifier = Modifier.padding(5.dp)) {
-                    Checkbox(checked = task.value.completed, onCheckedChange = { task.value = task.value.copy(completed = it) })
-                    Column(modifier = Modifier.align(Alignment.CenterVertically)) {
-                        Text(task.value.name, fontSize = TextUnit(19F, TextUnitType.Sp))
-                        if (task.value.description.isNotEmpty()) {
-                            OutlinedCard(
-                                modifier = Modifier
-                                    .padding(5.dp)
-                                    .fillMaxWidth()
-                            ) {
-                                Text(
-                                    task.value.description.replace("\n\n", "\n"),
-                                    maxLines = 4,
-                                    modifier = Modifier.padding(5.dp)
-                                )
-                            }
-                        }
-                        if (!task.value.dueDate.isNullOrEmpty()) {
-                            OutlinedCard(
-                                modifier = Modifier
-                                    .padding(5.dp)
-                                    .fillMaxWidth()
-                            ) {
-                                Row {
-                                    Icon(
-                                        imageVector = Icons.TwoTone.DateRange,
-                                        contentDescription = null,
-                                        modifier = Modifier.padding(5.dp)
-                                    )
-                                    Text(task.value.formatDueDate(), modifier = Modifier.padding(5.dp))
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            if (modalBottomSheet) {
-                TaskDetailView(taskState = task) { modalBottomSheet = false }
-            }
-        }
     }
 
     @Composable
