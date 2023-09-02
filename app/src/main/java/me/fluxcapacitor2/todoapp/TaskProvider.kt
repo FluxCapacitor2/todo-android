@@ -22,6 +22,10 @@ fun TaskProvider(initial: Task, render: @Composable (task: MutableState<Task>) -
     var task = remember {
         mutableStateOf(initial)
     }
+    LaunchedEffect(initial) {
+        // Whenever `initial` changes, pass the new object down to the child
+        task.value = initial
+    }
     var mounted by remember {
         mutableStateOf(false)
     }

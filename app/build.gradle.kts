@@ -84,6 +84,9 @@ dependencies {
     implementation("io.ktor:ktor-client-content-negotiation:$ktor_version")
     implementation("io.ktor:ktor-client-logging:$ktor_version")
 
+    implementation("org.slf4j:slf4j-api:2.0.7")
+    implementation("com.github.tony19:logback-android:3.0.0")
+
     implementation("org.mobilenativefoundation.store:store5:5.0.0-alpha03")
     implementation("org.jetbrains.kotlinx:atomicfu:0.20.2")
 
