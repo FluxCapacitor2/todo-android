@@ -16,6 +16,11 @@ object Notifications {
             .body<TRPCResponse<Array<Reminder>>>().result.data.json
     }
 
+    suspend fun listAll(): Array<Reminder> {
+        return client.get("notification.listAll")
+            .body<TRPCResponse<Array<Reminder>>>().result.data.json
+    }
+
     suspend fun add(
         projectId: String,
         taskId: Int,
